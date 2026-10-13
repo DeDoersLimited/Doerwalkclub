@@ -203,11 +203,11 @@
       </div>
       <div class="schedule-row">
         <span class="schedule-label">Meet</span>
-        <span class="schedule-value">7:00 AM</span>
+        <span class="schedule-value">6:30 AM</span>
       </div>
       <div class="schedule-row">
         <span class="schedule-label">Walk starts</span>
-        <span class="schedule-value">7:30 AM</span>
+        <span class="schedule-value">7:00 AM</span>
       </div>
     </div>
 
@@ -216,7 +216,7 @@
         <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M17.6 6.32A8.86 8.86 0 0 0 12.05 4c-4.83 0-8.76 3.9-8.76 8.72 0 1.54.4 3.04 1.17 4.36L3.25 21.5l4.55-1.19a8.83 8.83 0 0 0 4.24 1.08h.01c4.83 0 8.76-3.9 8.76-8.72 0-2.33-.91-4.52-2.55-6.35Zm-5.56 13.4h-.01a7.3 7.3 0 0 1-3.74-1.02l-.27-.16-2.7.71.72-2.62-.18-.27a7.27 7.27 0 0 1-1.12-3.88c0-4.02 3.29-7.29 7.32-7.29a7.26 7.26 0 0 1 7.31 7.3c0 4.02-3.28 7.23-7.33 7.23Zm4.01-5.46c-.22-.11-1.3-.64-1.5-.72-.2-.07-.35-.11-.5.11-.14.22-.57.72-.7.87-.13.14-.26.16-.48.05-.22-.11-.93-.34-1.77-1.09-.65-.58-1.1-1.29-1.22-1.51-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.4.1-.13.14-.22.21-.37.07-.14.04-.27-.02-.38-.06-.11-.5-1.2-.68-1.65-.18-.43-.36-.37-.5-.38-.13-.01-.28-.01-.43-.01a.83.83 0 0 0-.6.28c-.2.22-.79.77-.79 1.87 0 1.1.81 2.16.92 2.31.11.14 1.6 2.44 3.87 3.42.54.23.96.37 1.29.48.54.17 1.03.14 1.42.09.43-.07 1.3-.53 1.49-1.04.18-.51.18-.95.13-1.04-.06-.1-.2-.16-.42-.27Z" fill="currentColor"/></svg>
         Join the WhatsApp group
       </a>
-      <a class="btn btn-secondary" id="calBtn" href="#" target="_blank" rel="noopener">
+      <a class="btn btn-secondary" id="calBtn" href="#">
         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 9.5h17" stroke-linecap="round"/></svg>
         Add Saturday to my calendar
       </a>
@@ -227,30 +227,77 @@
 </div>
 
 <script>
-  function nextSaturday() {
-    const now = new Date();
-    const day = now.getDay();
-    let add = (6 - day + 7) % 7;
-    if (add === 0) add = 7; // if today is Saturday, point to next week
-    const sat = new Date(now.getFullYear(), now.getMonth(), now.getDate() + add, 7, 0, 0);
-    return sat;
+  // Next Saturday, 6:30 AM Lagos time (WAT, UTC+1, no daylight saving)
+  function nextSaturdayLagos() {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+    }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t).value;
+    const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(get('weekday'));
+    let add = (6 - dow + 7) % 7;
+    if (add === 0) add = 7;
+    const d = new Date(Date.UTC(+get('year'), +get('month') - 1, +get('day') + add));
+    const p = n => String(n).padStart(2, '0');
+    return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate());
   }
-  function fmt(d) {
-    const p = n => String(n).padStart(2,'0');
-    return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(d.getHours())+p(d.getMinutes())+'00';
+
+  function buildIcs() {
+    const day = nextSaturdayLagos();
+    const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Doer Walk Club//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VTIMEZONE',
+      'TZID:Africa/Lagos',
+      'BEGIN:STANDARD',
+      'DTSTART:19700101T000000',
+      'TZOFFSETFROM:+0100',
+      'TZOFFSETTO:+0100',
+      'TZNAME:WAT',
+      'END:STANDARD',
+      'END:VTIMEZONE',
+      'BEGIN:VEVENT',
+      'UID:doer-walk-club-saturday@dedoer.com',
+      'DTSTAMP:' + now,
+      'DTSTART;TZID=Africa/Lagos:' + day + 'T063000',
+      'DTEND;TZID=Africa/Lagos:' + day + 'T083000',
+      'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      'SUMMARY:Doer Walk Club',
+      'DESCRIPTION:Weekly Saturday walk with Doer Walk Club. Meet at 6:30 AM\\, walk starts at 7:00 AM.',
+      'LOCATION:Millennium Park\\, Maitama\\, Abuja',
+      // Two days before: Thursday 6:30 AM
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Doer Walk Club is this Saturday. Meet at 6:30 AM at Millennium Park.',
+      'TRIGGER:-P2D',
+      'END:VALARM',
+      // Night before: Friday 8:00 PM
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Doer Walk Club is tomorrow morning. Meet at 6:30 AM at Millennium Park.',
+      'TRIGGER:-PT10H30M',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+    return lines.join('\r\n') + '\r\n';
   }
-  const start = nextSaturday();
-  const end = new Date(start.getTime() + 90*60000);
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: 'Doer Walk Club',
-    dates: fmt(start) + '/' + fmt(end),
-    details: 'Weekly Saturday walk with Doer Walk Club. Meet at 7, walk starts 7:30.',
-    location: 'Millennium Park, Maitama, Abuja',
-    recur: 'RRULE:FREQ=WEEKLY;BYDAY=SA',
-    ctz: 'Africa/Lagos'
+
+  document.getElementById('calBtn').addEventListener('click', function (e) {
+    e.preventDefault();
+    const blob = new Blob([buildIcs()], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'doer-walk-club.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   });
-  document.getElementById('calBtn').href = 'https://calendar.google.com/calendar/render?' + params.toString();
 </script>
 </body>
 </html>
