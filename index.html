@@ -227,7 +227,7 @@
 </div>
 
 <script>
-  // Next Saturday, 6:30 AM Lagos time (WAT, UTC+1, no daylight saving)
+  // Next Saturday in Lagos, as YYYYMMDD
   function nextSaturdayLagos() {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
@@ -241,63 +241,30 @@
     return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate());
   }
 
-  function buildIcs() {
-    const day = nextSaturdayLagos();
-    const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-    const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Doer Walk Club//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VTIMEZONE',
-      'TZID:Africa/Lagos',
-      'BEGIN:STANDARD',
-      'DTSTART:19700101T000000',
-      'TZOFFSETFROM:+0100',
-      'TZOFFSETTO:+0100',
-      'TZNAME:WAT',
-      'END:STANDARD',
-      'END:VTIMEZONE',
-      'BEGIN:VEVENT',
-      'UID:doer-walk-club-saturday@dedoer.com',
-      'DTSTAMP:' + now,
-      'DTSTART;TZID=Africa/Lagos:' + day + 'T063000',
-      'DTEND;TZID=Africa/Lagos:' + day + 'T083000',
-      'RRULE:FREQ=WEEKLY;BYDAY=SA',
-      'SUMMARY:Doer Walk Club',
-      'DESCRIPTION:Weekly Saturday walk with Doer Walk Club. Meet at 6:30 AM\\, walk starts at 7:00 AM.',
-      'LOCATION:Millennium Park\\, Maitama\\, Abuja',
-      // Two days before: Thursday 6:30 AM
-      'BEGIN:VALARM',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:Doer Walk Club is this Saturday. Meet at 6:30 AM at Millennium Park.',
-      'TRIGGER:-P2D',
-      'END:VALARM',
-      // Night before: Friday 8:00 PM
-      'BEGIN:VALARM',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:Doer Walk Club is tomorrow morning. Meet at 6:30 AM at Millennium Park.',
-      'TRIGGER:-PT10H30M',
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ];
-    return lines.join('\r\n') + '\r\n';
-  }
+  const btn = document.getElementById('calBtn');
+  const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  document.getElementById('calBtn').addEventListener('click', function (e) {
-    e.preventDefault();
-    const blob = new Blob([buildIcs()], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'doer-walk-club.ics';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  });
+  if (isApple) {
+    // Opens Apple's "Add to Calendar" sheet. Includes the two reminders.
+    btn.href = 'walk-club.ics';
+    btn.removeAttribute('target');
+  } else {
+    // Opens Google Calendar with the event filled in, tap Save.
+    const day = nextSaturdayLagos();
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: 'Doer Walk Club',
+      dates: day + 'T063000/' + day + 'T083000',
+      details: 'Weekly Saturday walk with Doer Walk Club. Meet at 6:30, walk starts at 7:00.',
+      location: 'Millennium Park, Maitama, Abuja',
+      recur: 'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      ctz: 'Africa/Lagos'
+    });
+    btn.href = 'https://calendar.google.com/calendar/render?' + params.toString();
+    btn.target = '_blank';
+    btn.rel = 'noopener';
+  }
 </script>
 </body>
 </html>
